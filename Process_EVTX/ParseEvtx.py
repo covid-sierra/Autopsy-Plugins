@@ -531,16 +531,25 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # TODO: Update this for your UI
     def initComponents(self):
         self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
-        #self.setLayout(GridLayout(0,1))
         self.setAlignmentX(JComponent.LEFT_ALIGNMENT)
+
+        # Panel for all checkboxes
         self.panel1 = JPanel()
         self.panel1.setLayout(BoxLayout(self.panel1, BoxLayout.Y_AXIS))
         self.panel1.setAlignmentY(JComponent.LEFT_ALIGNMENT)
+
         self.checkbox = JCheckBox("All Logs", actionPerformed=self.checkBoxEvent)
         self.checkbox1 = JCheckBox("Application.Evtx", actionPerformed=self.checkBoxEvent)
         self.checkbox2 = JCheckBox("Security.EVTX", actionPerformed=self.checkBoxEvent)
         self.checkbox3 = JCheckBox("System.EVTX", actionPerformed=self.checkBoxEvent)
         self.checkbox4 = JCheckBox("Other - Input in text area below then check this box", actionPerformed=self.checkBoxEvent)
+
+        # Scrollable text area for additional log names
+        self.area = JTextArea(5,25)
+        self.area.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0))
+        self.pane = JScrollPane()
+        self.pane.getViewport().add(self.area)
+
         self.panel1.add(self.checkbox)
         self.panel1.add(self.checkbox1)
         self.panel1.add(self.checkbox2)
@@ -548,13 +557,6 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.panel1.add(self.checkbox4)
         self.add(self.panel1)
 		
-        self.area = JTextArea(5,25)
-        #self.area.addKeyListener(self)
-        self.area.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0))
-        self.pane = JScrollPane()
-        self.pane.getViewport().add(self.area)
-        #self.pane.addKeyListener(self)
-        #self.add(self.area)
         self.add(self.pane)
 		
     # TODO: Update this for your UI
@@ -569,5 +571,3 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # Return the settings used
     def getSettings(self):
         return self.local_settings
-
- 
