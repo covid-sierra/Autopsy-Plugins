@@ -45,17 +45,25 @@ import os
 import subprocess
 
 from javax.swing import JCheckBox
+from javax.swing import JComboBox
+from javax.swing import JButton
+from javax.swing import JTextField
+from javax.swing import JSeparator
 from javax.swing import JList
 from javax.swing import JTextArea
+from javax.swing import JOptionPane
 from javax.swing import BoxLayout
 from java.awt import GridLayout
 from java.awt import BorderLayout
+from java.awt import FlowLayout
+from java.awt import Dimension
 from javax.swing import BorderFactory
 from javax.swing import JToolBar
 from javax.swing import JPanel
 from javax.swing import JFrame
 from javax.swing import JScrollPane
 from javax.swing import JComponent
+from javax.swing import Box
 from java.awt.event import KeyListener
 
 
@@ -142,6 +150,10 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
     # See: http://sleuthkit.org/autopsy/docs/api-docs/3.1/classorg_1_1sleuthkit_1_1autopsy_1_1ingest_1_1_ingest_job_context.html
     def startUp(self, context):
         self.context = context
+        self.filterField = ""
+        self.filterMode = None
+        self.filterInput = ""
+        self.sortDesc = False
 
         # Get path to EXE based on where this script is run from.
         # Assumes EXE is in same folder as script
@@ -155,7 +167,6 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
             if not os.path.exists(self.path_to_exe):
                 raise IngestModuleException("Linux executable was not found in module folder")
  
-        
         if self.local_settings.getSetting('All') == 'true':
             self.List_Of_Events.append('ALL')
             #self.logger.logp(Level.INFO, Process_EVTX1WithUI.__name__, "startUp", "All Events CHecked")
@@ -172,7 +183,18 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                 Event_List = self.local_settings.getSetting('EventLogs').split()
                 for evt in Event_List:
                    self.List_Of_Events.append(str(evt))
-             
+
+        if self.local_settings.getSetting('Filter') == 'true':
+            if self.local_settings.getSetting('FilterField') == "Event Identifier": self.filterField = "Event_Identifier"
+            elif self.local_settings.getSetting('FilterField') == "Event Level": self.filterField = "Event_Level"
+            elif self.local_settings.getSetting('FilterField') == "Source Name": self.filterField = "Event_source_Name"
+            elif self.local_settings.getSetting('FilterField') == "Event Detail": self.filterField = "Event_Detail_Text"
+            self.filterMode = self.local_settings.getSetting('FilterMode')
+            self.filterInput = self.local_settings.getSetting('FilterInput')
+
+        if self.local_settings.getSetting('SortDesc') == 'true':
+            self.sortDesc = True             
+
         # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
         # raise IngestModuleException(IngestModule(), "Oh No!")
         pass
@@ -364,13 +386,23 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                 self.log(Level.INFO, "File To process in SQL " + file_name + "  <<=====")
                 # Query the contacts table in the database and get all columns. 
                 try:
-                    stmt = dbConn.createStatement()
                     SQL_Statement = "SELECT File_Name, Recovered_Record, Computer_name, Event_Identifier, " + \
                                     " Event_Identifier_Qualifiers, Event_Level, Event_offset, Identifier, " + \
                                     " Event_source_Name, Event_User_Security_Identifier, Event_Time, " + \
-                                    " Event_Time_Epoch, Event_Detail_Text FROM Event_Logs where upper(File_Name) = upper('" + file_name + "')"
+                                    " Event_Time_Epoch, Event_Detail_Text FROM Event_Logs where upper(File_Name) = ?"
+                    if self.filterMode == 'equals':
+                        SQL_Statement += " AND ? = ?"
+                    elif self.filterMode == 'not equals':
+                        SQL_Statement += " AND ? != ?"
+                    elif self.filterMode == 'contains':
+                        SQL_Statement += " AND ? CONTAINS ?"
+                    pstmt = dbConn.prepareStatement(SQL_Statement)
+                    pstmt.setString(1, file_name.upper())
+                    if not self.filterMode is None:
+                        pstmt.setString(2, self.filterField)
+                        pstmt.setString(3, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement + "  <<=====")
-                    resultSet = stmt.executeQuery(SQL_Statement)
+                    resultSet = pstmt.executeQuery()
                 except SQLException as e:
                     self.log(Level.INFO, "Error querying database for EventLogs table (" + e.getMessage() + ")")
                     return IngestModule.ProcessResult.OK
@@ -413,13 +445,24 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                     #art.addAttribute(BlackboardAttribute(attID_ev_id, ParseEvtxDbIngestModuleFactory.moduleName, Identifier))
                     #art.addAttribute(BlackboardAttribute(attID_ev_ete, ParseEvtxDbIngestModuleFactory.moduleName, Event_Time_Epoch))
 
-                try:
-                    stmt_1 = dbConn.createStatement()
+                try: 
                     SQL_Statement_1 = "select event_identifier, file_name, count(*) 'Number_Of_Events'  " + \
-                                    " FROM Event_Logs where upper(File_Name) = upper('" + file_name + "')" + \
-                                    " group by event_identifier, file_name order by 3;"
-                    #self.log(Level.INFO, "SQL Statement " + SQL_Statement_1 + "  <<=====")
-                    resultSet_1 = stmt_1.executeQuery(SQL_Statement_1)
+                                    " FROM Event_Logs where upper(File_Name) = ?"
+                    if self.filterMode == 'equals':
+                        SQL_Statement += " AND Cast(event_identifier as varchar(20)) = ?"
+                    elif self.filterMode == 'not equals':
+                        SQL_Statement += " AND event_identifier != ?"
+                    elif self.filterMode == 'contains':
+                        SQL_Statement += " AND event_identifier CONTAINS ?"
+                    SQL_Statement_1 += " GROUP BY event_identifier, file_name ORDER BY 3"
+                    if self.sortDesc:
+                        SQL_Statement_1 += " DESC"
+                    pstmt_1 = dbConn.prepareStatement(SQL_Statement_1)
+                    pstmt_1.setString(1, file_name.upper())
+                    if not self.filterMode is None and self.filterField == "Event Identifier":
+                        pstmt.setString(2, self.filterInput)
+                    #self.log(Level.INFO, "SQL Statement " + SQL_Statement2 + "  <<=====")
+                    resultSet_1 = pstmt_1.executeQuery()
                 except SQLException as e:
                     self.log(Level.INFO, "Error querying database for EventLogs table (" + e.getMessage() + ")")
                     return IngestModule.ProcessResult.OK
@@ -450,10 +493,13 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                 ModuleDataEvent(ParseEvtxDbIngestModuleFactory.moduleName, artID_evtx_Long_evt, None))
                     
             # Clean up
-            stmt_1.close()
-            stmt.close()
+            pstmt_1.close()
+            pstmt.close()
             dbConn.close()
-            os.remove(lclDbPath)
+            try:
+                os.remove(lclDbPath)
+            except OSError:
+                JOptionPane.showMessageDialog(None, "Could not remove database path, because it is used by another process", "Error deleting database path", JOptionPane.ERROR_MESSAGE)
                 
             #Clean up EventLog directory and files
             for file in files:
@@ -521,9 +567,24 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
             self.local_settings.setSetting('System', 'false')
         if self.checkbox4.isSelected():
             self.local_settings.setSetting('Other', 'true')
-            self.local_settings.setSetting('EventLogs', self.area.getText())
+	    self.area.setEnabled(True)
         else:
             self.local_settings.setSetting('Other', 'false')
+	    self.area.setEnabled(False)
+	if self.filterCheckbox.isSelected():
+	    self.local_settings.setSetting('Filter', 'true')
+	    self.filterField.setEnabled(True)
+	    self.filterSelector.setEnabled(True)
+	    self.filterInput.setEnabled(True)
+	else:
+	    self.local_settings.setSetting('Filter', 'false')
+	    self.filterField.setEnabled(False)
+	    self.filterSelector.setEnabled(False)
+	    self.filterInput.setEnabled(False)
+	if self.sortCheckbox.isSelected():
+	    self.local_settings.setSetting('SortDesc', 'true')
+	else:
+	    self.local_settings.setSetting('SortDesc', 'false')
 
     def keyPressed(self, event):
         self.local_settings.setSetting('EventLogs', self.area.getText())
@@ -545,8 +606,9 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.checkbox4 = JCheckBox("Other - Input in text area below then check this box", actionPerformed=self.checkBoxEvent)
 
         # Scrollable text area for additional log names
-        self.area = JTextArea(5,25)
-        self.area.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0))
+        self.area = JTextArea(3,10)
+        self.area.setBorder(BorderFactory.createEmptyBorder(0,0,0,0))
+        self.area.setEnabled(False)
         self.pane = JScrollPane()
         self.pane.getViewport().add(self.area)
 
@@ -558,6 +620,36 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.add(self.panel1)
 		
         self.add(self.pane)
+
+	# TODO: add separator
+
+	self.panel2 = JPanel()
+	self.panel2.setLayout(BoxLayout(self.panel2, BoxLayout.Y_AXIS))
+	self.panel2.setAlignmentY(JComponent.LEFT_ALIGNMENT)
+
+	self.filterCheckbox = JCheckBox("Filter", actionPerformed=self.checkBoxEvent)
+	self.panel2.add(self.filterCheckbox)
+
+	self.filterPanel = JPanel()
+	self.filterPanel.setLayout(BoxLayout(self.filterPanel, BoxLayout.X_AXIS))
+	self.filterField = JComboBox(["Event Identifier", "Event Level", "Source Name", "Event Detail"])
+	self.filterField.setEnabled(False)
+	self.filterField.setMaximumSize(self.filterField.getPreferredSize())
+	self.filterSelector = JComboBox(["equals", "not equals", "contains"])
+	self.filterSelector.setEnabled(False)
+	self.filterSelector.setMaximumSize(self.filterSelector.getPreferredSize())
+	self.filterInput = JTextField()
+	self.filterInput.setEnabled(False)
+	self.filterInput.setMaximumSize(Dimension(512, self.filterInput.getPreferredSize().height))
+	self.filterPanel.add(self.filterField)
+	self.filterPanel.add(self.filterSelector)
+	self.filterPanel.add(self.filterInput)
+
+	self.panel2.add(self.filterPanel)
+	self.add(self.panel2)
+
+	self.sortCheckbox = JCheckBox("Sort Event Counts Descending", actionPerformed=self.checkBoxEvent)
+	self.add(self.sortCheckbox)
 		
     # TODO: Update this for your UI
     def customizeComponents(self):
@@ -570,4 +662,8 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
 
     # Return the settings used
     def getSettings(self):
+        self.local_settings.setSetting('EventLogs', self.area.getText())
+        self.local_settings.setSetting('FilterMode', self.filterField.getSelectedItem())
+        self.local_settings.setSetting('FilterMode', self.filterSelector.getSelectedItem())
+        self.local_settings.setSetting('FilterInput', self.filterInput.getText())
         return self.local_settings
