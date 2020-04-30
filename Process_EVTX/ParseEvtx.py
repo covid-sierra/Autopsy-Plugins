@@ -608,11 +608,6 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
         self.setAlignmentX(JComponent.LEFT_ALIGNMENT)
 
-        # Panel for all checkboxes
-        self.panel1 = JPanel()
-        self.panel1.setLayout(BoxLayout(self.panel1, BoxLayout.Y_AXIS))
-        self.panel1.setAlignmentY(JComponent.LEFT_ALIGNMENT)
-
         self.checkbox = JCheckBox("All Logs", actionPerformed=self.checkBoxEvent)
         self.checkbox1 = JCheckBox("Application.Evtx", actionPerformed=self.checkBoxEvent)
         self.checkbox2 = JCheckBox("Security.EVTX", actionPerformed=self.checkBoxEvent)
@@ -626,44 +621,39 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.pane = JScrollPane()
         self.pane.getViewport().add(self.area)
 
-        self.panel1.add(self.checkbox)
-        self.panel1.add(self.checkbox1)
-        self.panel1.add(self.checkbox2)
-        self.panel1.add(self.checkbox3)
-        self.panel1.add(self.checkbox4)
-        self.add(self.panel1)
-		
+        self.add(self.checkbox)
+        self.add(self.checkbox1)
+        self.add(self.checkbox2)
+        self.add(self.checkbox3)
+        self.add(self.checkbox4)
         self.add(self.pane)
 
-	# TODO: add separator
+        self.add(JSeparator())
+        self.add(JSeparator())
 
-	self.panel2 = JPanel()
-	self.panel2.setLayout(BoxLayout(self.panel2, BoxLayout.Y_AXIS))
-	self.panel2.setAlignmentY(JComponent.LEFT_ALIGNMENT)
+        self.filterCheckbox = JCheckBox("Filter", actionPerformed=self.checkBoxEvent)
+        self.filterCheckbox.setLayout(BoxLayout(self.filterCheckbox, BoxLayout.X_AXIS))
+        self.add(self.filterCheckbox)
 
-	self.filterCheckbox = JCheckBox("Filter", actionPerformed=self.checkBoxEvent)
-	self.panel2.add(self.filterCheckbox)
+        self.filterPanel = JPanel()
+        self.filterPanel.setLayout(BoxLayout(self.filterPanel, BoxLayout.X_AXIS))
+        self.filterField = JComboBox(["Computer Name", "Event Identifier", "Event Level", "Source Name", "Event Detail"])
+        self.filterField.setEnabled(False)
+        self.filterField.setMaximumSize(self.filterField.getPreferredSize())
+        self.filterSelector = JComboBox(["equals", "not equals", "contains", "starts with", "ends with"])
+        self.filterSelector.setEnabled(False)
+        self.filterSelector.setMaximumSize(self.filterSelector.getPreferredSize())
+        self.filterInput = JTextField()
+        self.filterInput.setEnabled(False)
+        self.filterInput.setMaximumSize(Dimension(512, self.filterInput.getPreferredSize().height))
+        self.filterPanel.add(self.filterField)
+        self.filterPanel.add(self.filterSelector)
+        self.filterPanel.add(self.filterInput)
 
-	self.filterPanel = JPanel()
-	self.filterPanel.setLayout(BoxLayout(self.filterPanel, BoxLayout.X_AXIS))
-	self.filterField = JComboBox(["Computer Name", "Event Identifier", "Event Level", "Source Name", "Event Detail"])
-	self.filterField.setEnabled(False)
-	self.filterField.setMaximumSize(self.filterField.getPreferredSize())
-	self.filterSelector = JComboBox(["equals", "not equals", "contains", "starts with", "ends with"])
-	self.filterSelector.setEnabled(False)
-	self.filterSelector.setMaximumSize(self.filterSelector.getPreferredSize())
-	self.filterInput = JTextField()
-	self.filterInput.setEnabled(False)
-	self.filterInput.setMaximumSize(Dimension(512, self.filterInput.getPreferredSize().height))
-	self.filterPanel.add(self.filterField)
-	self.filterPanel.add(self.filterSelector)
-	self.filterPanel.add(self.filterInput)
+        self.add(self.filterPanel)
 
-	self.panel2.add(self.filterPanel)
-	self.add(self.panel2)
-
-	self.sortCheckbox = JCheckBox("Sort Event Counts Descending", actionPerformed=self.checkBoxEvent)
-	self.add(self.sortCheckbox)
+        self.sortCheckbox = JCheckBox("Sort Event Counts Descending", actionPerformed=self.checkBoxEvent)
+        self.add(self.sortCheckbox)
 		
     # TODO: Update this for your UI
     def customizeComponents(self):
