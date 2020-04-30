@@ -185,7 +185,8 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                    self.List_Of_Events.append(str(evt))
 
         if self.local_settings.getSetting('Filter') == 'true':
-            if self.local_settings.getSetting('FilterField') == "Event Identifier": self.filterField = "Event_Identifier"
+            if self.local_settings.getSetting('FilterField') == "Computer Name": self.filterField = "Computer_name"
+            elif self.local_settings.getSetting('FilterField') == "Event Identifier": self.filterField = "Event_Identifier"
             elif self.local_settings.getSetting('FilterField') == "Event Level": self.filterField = "Event_Level"
             elif self.local_settings.getSetting('FilterField') == "Source Name": self.filterField = "Event_source_Name"
             elif self.local_settings.getSetting('FilterField') == "Event Detail": self.filterField = "Event_Detail_Text"
@@ -394,13 +395,17 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                         SQL_Statement += " AND {} = ?".format(self.filterField)
                     elif self.filterMode == 'not equals':
                         SQL_Statement += " AND {} != ?".format(self.filterField)
-                    elif self.filterMode == 'contains':
+                    elif self.filterMode == 'contains' or self.filterMode == 'starts with' or self.filterMode == 'ends with':
                         SQL_Statement += " AND {} LIKE ?".format(self.filterField)
                     pstmt = dbConn.prepareStatement(SQL_Statement)
                     pstmt.setString(1, file_name.upper())
                     if not self.filterMode is None: 
                         if self.filterMode == 'contains':
                             pstmt.setString(2, "%" + self.filterInput + "%")
+                        elif self.filterMode == 'starts with':
+                            pstmt.setString(2, self.filterInput + "%")
+                        elif self.filterMode == 'ends with':
+                            pstmt.setString(2, "%" + self.filterInput)
                         else:
                             pstmt.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement + "  <<=====")
@@ -454,7 +459,7 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                         SQL_Statement_1 += " AND event_identifier = ?"
                     elif self.filterMode == 'not equals' and self.filterField == "Event_Identifier":
                         SQL_Statement_1 += " AND event_identifier != ?"
-                    elif self.filterMode == 'contains' and self.filterField == "Event_Identifier":
+                    elif (self.filterMode == 'contains' or self.filterMode == 'starts with' or self.filterMode == 'ends with') and self.filterField == "Event_Identifier":
                         SQL_Statement_1 += " AND event_identifier LIKE ?"
                     SQL_Statement_1 += " GROUP BY event_identifier, file_name ORDER BY 3"
                     if self.sortDesc:
@@ -464,6 +469,10 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                     if not self.filterMode is None and self.filterField == "Event_Identifier":
                         if self.filterMode == 'contains':
                             pstmt_1.setString(2, "%" + self.filterInput + "%")
+                        elif self.filterMode == 'starts with':
+                            pstmt_1.setString(2, self.filterInput + "%")
+                        elif self.filterMode == 'ends with':
+                            pstmt_1.setString(2, "%" + self.filterMode)
                         else:
                             pstmt_1.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement2 + "  <<=====")
@@ -637,10 +646,10 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
 
 	self.filterPanel = JPanel()
 	self.filterPanel.setLayout(BoxLayout(self.filterPanel, BoxLayout.X_AXIS))
-	self.filterField = JComboBox(["Event Identifier", "Event Level", "Source Name", "Event Detail"])
+	self.filterField = JComboBox(["Computer Name", "Event Identifier", "Event Level", "Source Name", "Event Detail"])
 	self.filterField.setEnabled(False)
 	self.filterField.setMaximumSize(self.filterField.getPreferredSize())
-	self.filterSelector = JComboBox(["equals", "not equals", "contains"])
+	self.filterSelector = JComboBox(["equals", "not equals", "contains", "starts with", "ends with"])
 	self.filterSelector.setEnabled(False)
 	self.filterSelector.setMaximumSize(self.filterSelector.getPreferredSize())
 	self.filterInput = JTextField()
