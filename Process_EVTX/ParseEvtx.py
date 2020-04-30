@@ -395,11 +395,14 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                     elif self.filterMode == 'not equals':
                         SQL_Statement += " AND {} != ?".format(self.filterField)
                     elif self.filterMode == 'contains':
-                        SQL_Statement += " AND {} CONTAINS ?".format(self.filterField)
+                        SQL_Statement += " AND {} LIKE ?".format(self.filterField)
                     pstmt = dbConn.prepareStatement(SQL_Statement)
                     pstmt.setString(1, file_name.upper())
-                    if not self.filterMode is None:
-                        pstmt.setString(2, self.filterInput)
+                    if not self.filterMode is None: 
+                        if self.filterMode == 'contains':
+                            pstmt.setString(2, "%" + self.filterInput + "%")
+                        else:
+                            pstmt.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement + "  <<=====")
                     resultSet = pstmt.executeQuery()
                 except SQLException as e:
@@ -452,14 +455,17 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                     elif self.filterMode == 'not equals' and self.filterField == "Event_Identifier":
                         SQL_Statement_1 += " AND event_identifier != ?"
                     elif self.filterMode == 'contains' and self.filterField == "Event_Identifier":
-                        SQL_Statement_1 += " AND event_identifier CONTAINS ?"
+                        SQL_Statement_1 += " AND event_identifier LIKE ?"
                     SQL_Statement_1 += " GROUP BY event_identifier, file_name ORDER BY 3"
                     if self.sortDesc:
                         SQL_Statement_1 += " DESC"
                     pstmt_1 = dbConn.prepareStatement(SQL_Statement_1)
                     pstmt_1.setString(1, file_name.upper())
                     if not self.filterMode is None and self.filterField == "Event_Identifier":
-                        pstmt_1.setString(2, self.filterInput)
+                        if self.filterMode == 'contains':
+                            pstmt_1.setString(2, "%" + self.filterInput + "%")
+                        else:
+                            pstmt_1.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement2 + "  <<=====")
                     resultSet_1 = pstmt_1.executeQuery()
                 except SQLException as e:
