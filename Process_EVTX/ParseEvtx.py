@@ -391,16 +391,15 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                                     " Event_source_Name, Event_User_Security_Identifier, Event_Time, " + \
                                     " Event_Time_Epoch, Event_Detail_Text FROM Event_Logs where upper(File_Name) = ?"
                     if self.filterMode == 'equals':
-                        SQL_Statement += " AND ? = ?"
+                        SQL_Statement += " AND {} = ?".format(self.filterField)
                     elif self.filterMode == 'not equals':
-                        SQL_Statement += " AND ? != ?"
+                        SQL_Statement += " AND {} != ?".format(self.filterField)
                     elif self.filterMode == 'contains':
-                        SQL_Statement += " AND ? CONTAINS ?"
+                        SQL_Statement += " AND {} CONTAINS ?".format(self.filterField)
                     pstmt = dbConn.prepareStatement(SQL_Statement)
                     pstmt.setString(1, file_name.upper())
                     if not self.filterMode is None:
-                        pstmt.setString(2, self.filterField)
-                        pstmt.setString(3, self.filterInput)
+                        pstmt.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement + "  <<=====")
                     resultSet = pstmt.executeQuery()
                 except SQLException as e:
@@ -448,19 +447,19 @@ class ParseEvtxDbIngestModule(DataSourceIngestModule):
                 try: 
                     SQL_Statement_1 = "select event_identifier, file_name, count(*) 'Number_Of_Events'  " + \
                                     " FROM Event_Logs where upper(File_Name) = ?"
-                    if self.filterMode == 'equals':
-                        SQL_Statement += " AND Cast(event_identifier as varchar(20)) = ?"
-                    elif self.filterMode == 'not equals':
-                        SQL_Statement += " AND event_identifier != ?"
-                    elif self.filterMode == 'contains':
-                        SQL_Statement += " AND event_identifier CONTAINS ?"
+                    if self.filterMode == 'equals' and self.filterField == "Event_Identifier":
+                        SQL_Statement_1 += " AND event_identifier = ?"
+                    elif self.filterMode == 'not equals' and self.filterField == "Event_Identifier":
+                        SQL_Statement_1 += " AND event_identifier != ?"
+                    elif self.filterMode == 'contains' and self.filterField == "Event_Identifier":
+                        SQL_Statement_1 += " AND event_identifier CONTAINS ?"
                     SQL_Statement_1 += " GROUP BY event_identifier, file_name ORDER BY 3"
                     if self.sortDesc:
                         SQL_Statement_1 += " DESC"
                     pstmt_1 = dbConn.prepareStatement(SQL_Statement_1)
                     pstmt_1.setString(1, file_name.upper())
-                    if not self.filterMode is None and self.filterField == "Event Identifier":
-                        pstmt.setString(2, self.filterInput)
+                    if not self.filterMode is None and self.filterField == "Event_Identifier":
+                        pstmt_1.setString(2, self.filterInput)
                     #self.log(Level.INFO, "SQL Statement " + SQL_Statement2 + "  <<=====")
                     resultSet_1 = pstmt_1.executeQuery()
                 except SQLException as e:
@@ -663,7 +662,7 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # Return the settings used
     def getSettings(self):
         self.local_settings.setSetting('EventLogs', self.area.getText())
-        self.local_settings.setSetting('FilterMode', self.filterField.getSelectedItem())
+        self.local_settings.setSetting('FilterField', self.filterField.getSelectedItem())
         self.local_settings.setSetting('FilterMode', self.filterSelector.getSelectedItem())
         self.local_settings.setSetting('FilterInput', self.filterInput.getText())
         return self.local_settings
