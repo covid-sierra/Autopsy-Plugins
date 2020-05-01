@@ -148,8 +148,6 @@ class EvtxIngestModule implements DataSourceIngestModule {
             }
         }
         
-        progressBar.switchToDeterminate(files.size());
-        
         for (AbstractFile file : files) {
             if (context.dataSourceIngestIsCancelled()) return IngestModule.ProcessResult.OK;
             File current = new File(tempDir, file.getName());
@@ -178,9 +176,14 @@ class EvtxIngestModule implements DataSourceIngestModule {
             return IngestModule.ProcessResult.ERROR;
         }
         
+        progressBar.switchToDeterminate(files.size() * 2);
+        int progressCounter = 0;
         try (Connection dbConn = DriverManager.getConnection("jdbc:sqlite:" + dbPath.getAbsolutePath())) {
             
             for (AbstractFile file : files) {
+                if (context.dataSourceIngestIsCancelled()) return IngestModule.ProcessResult.OK;
+                progressBar.progress(file.getName(), progressCounter++);
+                
                 String fileName = file.getName();
                 
                 String sql = "SELECT File_Name, Recovered_Record, Computer_name, Event_Identifier, " + 
@@ -205,6 +208,7 @@ class EvtxIngestModule implements DataSourceIngestModule {
                 }
 
                 ResultSet resultSet = pstmt.executeQuery();
+                ArrayList<BlackboardArtifact> artifacts = new ArrayList<>();
                 while (resultSet.next()) {
                     try {
                         String computerName                = resultSet.getString("Computer_Name");
@@ -224,13 +228,22 @@ class EvtxIngestModule implements DataSourceIngestModule {
                         art.addAttribute(new BlackboardAttribute(attID_ev_et,  EvtxIngestModuleFactory.getModuleName(), eventTime));
                         art.addAttribute(new BlackboardAttribute(attID_ev_dt,  EvtxIngestModuleFactory.getModuleName(), eventDetailText));
                         
-                        sleuthkitCase.getBlackboard().postArtifact(art, EvtxIngestModuleFactory.getModuleName());
-                    } catch (SQLException | TskCoreException | BlackboardException e) {
+                        artifacts.add(art);
+                    } catch (SQLException | TskCoreException e) {
                         log(IngestMessage.MessageType.WARNING, "Error getting values from DB: " + e.getLocalizedMessage());
                     }
                 }
                 resultSet.close();
                 pstmt.close();
+                
+                try {
+                    sleuthkitCase.getBlackboard().postArtifacts(artifacts, EvtxIngestModuleFactory.getModuleName());
+                } catch (BlackboardException e) {
+                    log(IngestMessage.MessageType.WARNING, "Cant add Blackboard artifacts: " + e.getLocalizedMessage());
+                }
+                
+                if (context.dataSourceIngestIsCancelled()) return IngestModule.ProcessResult.OK;
+                progressBar.progress(file.getName(), progressCounter++);
                 
                 sql = "select event_identifier, file_name, count(*) 'Number_Of_Events'  " + 
                         " FROM Event_Logs where upper(File_Name) = ?";
@@ -254,6 +267,7 @@ class EvtxIngestModule implements DataSourceIngestModule {
                 }
                 
                 resultSet = pstmt.executeQuery();
+                artifacts.clear();
                 while (resultSet.next()) {
                     try {
                         long eventIdentifier = resultSet.getLong("Event_Identifier");
@@ -263,14 +277,19 @@ class EvtxIngestModule implements DataSourceIngestModule {
                         art.addAttribute(new BlackboardAttribute(attID_ev_ei,  EvtxIngestModuleFactory.getModuleName(), eventIdentifier));
                         art.addAttribute(new BlackboardAttribute(attID_ev_cnt, EvtxIngestModuleFactory.getModuleName(), eventIdCount));
                         
-                        sleuthkitCase.getBlackboard().postArtifact(art, EvtxIngestModuleFactory.getModuleName());
-                    } catch (SQLException | TskCoreException | BlackboardException e) {
+                        artifacts.add(art);
+                    } catch (SQLException | TskCoreException e) {
                         log(IngestMessage.MessageType.WARNING, "Error getting values from DB: " + e.getLocalizedMessage());
                     }
                 }
                 resultSet.close();
                 pstmt.close();
-                progressBar.progress(1);
+                
+                try {
+                    sleuthkitCase.getBlackboard().postArtifacts(artifacts, EvtxIngestModuleFactory.getModuleName());
+                } catch (BlackboardException e) {
+                    log(IngestMessage.MessageType.WARNING, "Cant add Blackboard artifacts: " + e.getLocalizedMessage());
+                }
             }
             
         } catch (SQLException e) {

@@ -77,10 +77,16 @@ public class EvtxIngestJobSettings implements IngestModuleIngestJobSettings {
         boolean isComplete() { return field != null && operator != null && parameter != null && !parameter.trim().isEmpty(); }
         
         public String getFilterString() {
+            String res = String.format(operator.getPattern(), field.getFieldName());
             if (operator == FilterOperator.IN) {
-                
+                String repl = "(?";
+                for (int i = 1; i < getFilterParameters().length; i++) {
+                    repl += ", ?";
+                }
+                repl += ")";
+                res = res.replace("(?)", repl);
             }
-            return String.format(operator.getPattern(), field.getFieldName());
+            return res;
         }
         
         public String[] getFilterParameters() {
