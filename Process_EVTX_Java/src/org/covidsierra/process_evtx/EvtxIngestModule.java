@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import org.covidsierra.process_evtx.EvtxIngestJobSettings.Filter;
 import org.openide.util.Exceptions;
 import org.sleuthkit.autopsy.casemodule.Case;
 import org.sleuthkit.autopsy.casemodule.services.FileManager;
@@ -186,12 +188,21 @@ class EvtxIngestModule implements DataSourceIngestModule {
                         " Event_source_Name, Event_User_Security_Identifier, Event_Time, " + 
                         " Event_Time_Epoch, Event_Detail_Text FROM Event_Logs where upper(File_Name) = ?";
                 
-                // TODO filtering
+                List<Filter> filters = settings.getFilters().stream().filter(Filter::isComplete).collect(Collectors.toList());
+                
+                for (Filter filter : filters) {
+                    sql += " AND " + filter.getFilterString();
+                }
                 
                 PreparedStatement pstmt = dbConn.prepareStatement(sql);
                 pstmt.setString(1, fileName.toUpperCase());
                 
-                // TODO filtering
+                int paramIndex = 2;
+                for (Filter filter : filters) {
+                    for (String param : filter.getFilterParameters()) {
+                        pstmt.setString(paramIndex++, param);
+                    }
+                }
 
                 ResultSet resultSet = pstmt.executeQuery();
                 while (resultSet.next()) {
@@ -224,16 +235,23 @@ class EvtxIngestModule implements DataSourceIngestModule {
                 sql = "select event_identifier, file_name, count(*) 'Number_Of_Events'  " + 
                         " FROM Event_Logs where upper(File_Name) = ?";
                 
-                // TODO filtering
+                for (Filter filter : filters) {
+                    sql += " AND " + filter.getFilterString();
+                }
                 
                 sql += " GROUP BY event_identifier, file_name ORDER BY 3";
                 
-                // TODO filtering
+                // TODO descending support
                 
                 pstmt = dbConn.prepareStatement(sql);
                 pstmt.setString(1, fileName.toUpperCase());
                 
-                // TODO filtering
+                paramIndex = 2;
+                for (Filter filter : filters) {
+                    for (String param : filter.getFilterParameters()) {
+                        pstmt.setString(paramIndex++, param);
+                    }
+                }
                 
                 resultSet = pstmt.executeQuery();
                 while (resultSet.next()) {

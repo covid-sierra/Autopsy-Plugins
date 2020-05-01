@@ -77,6 +77,9 @@ public class EvtxIngestJobSettings implements IngestModuleIngestJobSettings {
         boolean isComplete() { return field != null && operator != null && parameter != null && !parameter.trim().isEmpty(); }
         
         public String getFilterString() {
+            if (operator == FilterOperator.IN) {
+                
+            }
             return String.format(operator.getPattern(), field.getFieldName());
         }
         
