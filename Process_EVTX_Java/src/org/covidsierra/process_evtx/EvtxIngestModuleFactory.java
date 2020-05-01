@@ -7,12 +7,7 @@ import org.sleuthkit.autopsy.ingest.IngestModuleFactory;
 import org.sleuthkit.autopsy.ingest.IngestModuleFactoryAdapter;
 import org.sleuthkit.autopsy.ingest.IngestModuleIngestJobSettings;
 import org.sleuthkit.autopsy.ingest.IngestModuleIngestJobSettingsPanel;
-import org.sleuthkit.autopsy.ingest.NoIngestModuleIngestJobSettings;
 
-/**
- *
- * @author CyberLG
- */
 @ServiceProvider(service = IngestModuleFactory.class)
 public class EvtxIngestModuleFactory extends IngestModuleFactoryAdapter {
     

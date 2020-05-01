@@ -1,28 +1,28 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.covidsierra.process_evtx;
 
+import java.awt.Dialog;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.event.ActionListener;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JDialog;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import org.openide.awt.Mnemonics;
 import org.openide.util.NbBundle;
 import org.sleuthkit.autopsy.ingest.IngestModuleIngestJobSettings;
 import org.sleuthkit.autopsy.ingest.IngestModuleIngestJobSettingsPanel;
 
 public class EvtxIngestJobSettingsPanel extends IngestModuleIngestJobSettingsPanel {
     
+    private final EvtxIngestJobSettings settings;
     private JCheckBox checkBoxAll;
     private JCheckBox checkBoxApplication;
     private JCheckBox checkBoxSecurity;
@@ -32,11 +32,12 @@ public class EvtxIngestJobSettingsPanel extends IngestModuleIngestJobSettingsPan
     private JButton   buttonFilter;
 
     public EvtxIngestJobSettingsPanel(EvtxIngestJobSettings settings) {
+        this.settings = settings;
         initComponents();
-        customizeComponents(settings);
+        customizeComponents();
     }
 
-    private void customizeComponents(EvtxIngestJobSettings settings) {
+    private void customizeComponents() {
         checkBoxAll        .setSelected(settings.isAnalyzeAll());
         checkBoxApplication.setSelected(settings.isAnalyzeApplication());
         checkBoxSecurity   .setSelected(settings.isAnalyzeSecurity());
@@ -44,16 +45,21 @@ public class EvtxIngestJobSettingsPanel extends IngestModuleIngestJobSettingsPan
         checkBoxOther      .setSelected(settings.isAnalyzeOther());
         textAreaOther.setText(settings.getOther());
     }
+    
+    private void checkboxChecked(ActionEvent e) {
+        if (e.getSource() == checkBoxAll)         settings.setAnalyzeAll        (checkBoxAll        .isSelected());
+        if (e.getSource() == checkBoxApplication) settings.setAnalyzeApplication(checkBoxApplication.isSelected());
+        if (e.getSource() == checkBoxSecurity)    settings.setAnalyzeSecurity   (checkBoxSecurity   .isSelected());
+        if (e.getSource() == checkBoxSystem)      settings.setAnalyzeSystem     (checkBoxSystem     .isSelected());
+        if (e.getSource() == checkBoxOther)       settings.setAnalyzeOther      (checkBoxOther      .isSelected());
+    }
+    
+    private void textAreaChanged(DocumentEvent e) {
+        settings.setOther(textAreaOther.getText());
+    }
 
     @Override
     public IngestModuleIngestJobSettings getSettings() {
-        EvtxIngestJobSettings settings = new EvtxIngestJobSettings();
-        settings.setAnalyzeAll        (checkBoxAll        .isSelected());
-        settings.setAnalyzeApplication(checkBoxApplication.isSelected());
-        settings.setAnalyzeSecurity   (checkBoxSecurity   .isSelected());
-        settings.setAnalyzeSystem     (checkBoxSystem     .isSelected());
-        settings.setAnalyzeOther      (checkBoxOther      .isSelected());
-        settings.setOther(textAreaOther.getText());
         return settings;
     }
 
@@ -64,8 +70,15 @@ public class EvtxIngestJobSettingsPanel extends IngestModuleIngestJobSettingsPan
         checkBoxSystem      = new JCheckBox(NbBundle.getMessage(EvtxIngestJobSettingsPanel.class, "EvtxIngestJobSettingsPanel.SystemCheckBox.text"));
         checkBoxOther       = new JCheckBox(NbBundle.getMessage(EvtxIngestJobSettingsPanel.class, "EvtxIngestJobSettingsPanel.OtherCheckBox.text"));
         
+        checkBoxAll        .addActionListener(this::checkboxChecked);
+        checkBoxApplication.addActionListener(this::checkboxChecked);
+        checkBoxSecurity   .addActionListener(this::checkboxChecked);
+        checkBoxSystem     .addActionListener(this::checkboxChecked);
+        checkBoxOther      .addActionListener(this::checkboxChecked);
+        
         textAreaOther = new JTextArea(5,0);
         textAreaOther.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+        textAreaOther.getDocument().addDocumentListener(new DocumentListenerAdapter(this::textAreaChanged));
         JScrollPane pane = new JScrollPane(textAreaOther);
         
         buttonFilter = new JButton(NbBundle.getMessage(EvtxIngestJobSettingsPanel.class, "EvtxIngestJobSettingsPanel.FilterButton.text"));
@@ -83,7 +96,10 @@ public class EvtxIngestJobSettingsPanel extends IngestModuleIngestJobSettingsPan
     }
     
     private void filterButtonPressed() {
-        
+        Window window = SwingUtilities.getWindowAncestor(this);
+        JDialog dialog = new EvtxFilterSettingsDialog(window, settings);
+        dialog.setVisible(true);
     }
+    
     
 }
